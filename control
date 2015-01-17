@@ -1,0 +1,9 @@
+Package: com.joshdoctors.pushability
+Name: Pushability
+Depends: mobilesubstrate
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: Replaces the default Reachability action. Pushes your devices' screen up instead of down.
+Maintainer: Josh Doctors
+Author: Josh Doctors
+Section: Tweaks

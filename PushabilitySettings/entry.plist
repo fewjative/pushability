@@ -1,0 +1,10 @@
+{
+    entry = {
+	bundle = PushabilitySettings;
+	cell = PSLinkCell;
+	detail = PushabilitySettingsListController;
+	icon = PushabilitySettings.png;
+	isController = 1;
+	label = Pushability;
+    };
+}
