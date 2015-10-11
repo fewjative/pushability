@@ -6,6 +6,7 @@ Pushability_FILES = Tweak.xm
 Pushability_FRAMEWORKS = UIKit CoreGraphics Foundation
 Pushability_PRIVATE_FRAMEWORKS = SpringBoardFoundation
 Pushability_CFLAGS = -Wno-error
+Pushability_LDFLAGS += -Wl,-segalign,4000
 export GO_EASY_ON_ME := 1
 include $(THEOS_MAKE_PATH)/tweak.mk
 

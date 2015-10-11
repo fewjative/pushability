@@ -19,6 +19,33 @@ static CGFloat yOffset = 0.3;
 static CGRect defaultFirstRect;
 static CGRect defaultSecondRect;
 
+/*
+	Wow. This code....it works but is ugly. 
+*/
+
+// for iOS9
+%hook SBMainWorkspace
+
+-(void)handleReachabilityModeActivated {
+	NSLog(@"[Pushability]Activating reachability.");
+	activatingReachability = YES;
+	useDefault = NO;
+	once = NO;
+	%orig;
+}
+
+-(void)handleReachabilityModeDeactivated {
+	NSLog(@"[Pushability]Deactivating reachability.");
+	deactivatingReachability = YES;
+	activatingReachability = NO;
+	useDefault = NO;
+	once = NO;
+	%orig;
+	factory = nil;
+}
+
+%end
+
 %hook SBWorkspace
 
 -(void)handleReachabilityModeActivated {
@@ -80,7 +107,7 @@ static CGRect defaultSecondRect;
 
 	if(!enabled || useDefault)
 	{
-		NSLog(@"[Pushability]Using original setFrame.");
+		NSLog(@"[Pushability]Using the original setFrame.");
 		%orig;
 		return;
 	}
@@ -106,44 +133,49 @@ static CGRect defaultSecondRect;
 		if(self.frame.origin.x==0 && self.frame.origin.y==0 && !once)
 		{
 			NSLog(@"[Pushability]Modifying the first window(main app) - ReachActive");
-			NSLog(@"[Pushability]Self preChanges: %@", self);
-			NSLog(@"[Pushability]Rect PreChanges : %@", NSStringFromCGRect(rect));
-
-			bottomsUp = CGRectMake(0,-([[UIScreen mainScreen] bounds].size.height*yOffset),rect.size.width,[[UIScreen mainScreen] bounds].size.height - ([[UIScreen mainScreen] bounds].size.height*yOffset));
-
-			NSLog(@"[Pushability]Modified CGRect : %@", NSStringFromCGRect(bottomsUp));
+			CGFloat height = [[UIScreen mainScreen] bounds].size.height;
+			bottomsUp = CGRectMake(0,-height*yOffset,rect.size.width,height);
 
 			useDefault = YES;
 			[%c(SBFAnimationFactory) animateWithFactory:factory actions:^{
 				self.frame = bottomsUp;
 			} completion:^(BOOL finished){
 			}];
+
+			// for iOS9
+			[%c(BSUIAnimationFactory) animateWithFactory:factory actions:^{
+				self.frame = bottomsUp;
+			} completion:^(BOOL finished){
+			}];
+
 			useDefault = NO;
 			once = YES;
-			NSLog(@"[Pushability]Self postChanges: %@", self);
+			NSLog(@"[Pushability]Finished modifying the first window: %@", self);
 		}
 		else if(self.frame.origin.y==0 && self.frame.size.height==0)
 		{
 			NSLog(@"[Pushability]Modifying the second window(reachability window) - ReachActive");
-			NSLog(@"[Pushability]Self preChanges: %@", self);
-			NSLog(@"[Pushability]Rect PreChanges : %@", NSStringFromCGRect(rect));
-
 			//Realign the reachability frame so it is located at the bottom of the screen
 			CGRect realign = CGRectMake(0,[[UIScreen mainScreen] bounds].size.height,rect.size.width,0);
 			useDefault = YES;
 			self.frame = realign;
 			useDefault = NO;
-			NSLog(@"[Pushability]Self postRealign: %@", self);
+
 			bottomsUp = CGRectMake(0,self.frame.origin.y-rect.size.height,rect.size.width,rect.size.height);
 
-			NSLog(@"[Pushability]Modified CGRect : %@", NSStringFromCGRect(bottomsUp));
 			useDefault = YES;
 			[%c(SBFAnimationFactory) animateWithFactory:factory actions:^{
 				self.frame = bottomsUp;
 			} completion:^(BOOL finished){
 			}];
+
+			// for iOS9
+			[%c(BSUIAnimationFactory) animateWithFactory:factory actions:^{
+				self.frame = bottomsUp;
+			} completion:^(BOOL finished){
+			}];
 			useDefault = NO;
-			NSLog(@"[Pushability]Self postChanges: %@", self);
+			NSLog(@"[Pushability]Finished modifying the second window: %@", self);
 		}
 		else
 		{
@@ -164,11 +196,8 @@ static CGRect defaultSecondRect;
 		else
 		{
 			NSLog(@"[Pushability]Modifying the second window(reachability window) - ReachDeactive");
-			NSLog(@"[Pushability]Self preChanges: %@", self);
-			NSLog(@"[Pushability]Rect PreChanges : %@", NSStringFromCGRect(rect));
 
 			CGRect topsUp = CGRectMake(0,[[UIScreen mainScreen] bounds].size.height,rect.size.width,self.frame.size.height);
-			NSLog(@"[Pushability]Modified CGRect : %@", NSStringFromCGRect(topsUp));
 
 			useDefault = YES;
 			[%c(SBFAnimationFactory) animateWithFactory:factory actions:^{
@@ -179,9 +208,19 @@ static CGRect defaultSecondRect;
 				self.frame = rect;
 				useDefault =  NO;
 			}];
+
+			// for iOS9
+			[%c(BSUIAnimationFactory) animateWithFactory:factory actions:^{
+				self.frame = topsUp;
+			} completion:^(BOOL finished){
+				//If we don't set the frame to the original incoming frame, the lockscreen gets messed up. Weird.
+				useDefault = YES;
+				self.frame = rect;
+				useDefault =  NO;
+			}];
 			useDefault = NO;
 			factory = nil;
-			NSLog(@"[Pushability]Self postChanges: %@", self);
+			NSLog(@"[Pushability]Finished modifying the second window: %@", self);
 		}
 	}
 	else
@@ -193,7 +232,7 @@ static CGRect defaultSecondRect;
 
 static void loadPrefs() 
 {
-	NSLog(@"Loading Pushability prefs");
+	NSLog(@"Loading [Pushability] prefs");
     CFPreferencesAppSynchronize(CFSTR("com.joshdoctors.pushability"));
 
     enabled = !CFPreferencesCopyAppValue(CFSTR("enabled"), CFSTR("com.joshdoctors.pushability")) ? NO : [(id)CFPreferencesCopyAppValue(CFSTR("enabled"), CFSTR("com.joshdoctors.pushability")) boolValue];
@@ -206,7 +245,6 @@ static void loadPrefs()
 
 %ctor
 {
-	NSLog(@"Loading Pushability");
 	CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(),
                                 NULL,
                                 (CFNotificationCallback)loadPrefs,
